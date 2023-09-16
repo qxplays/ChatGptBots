@@ -67,8 +67,28 @@ public class DiscordChatBotService : IHostedService
         bool sendDone = false;
         var content = message.Content.Replace("/gpt4", "").Replace("/gpt", "");
         conversation.AppendUserInput(content);
-        ResponseToString(conversation.StreamResponseEnumerableFromChatbotAsync(), (s) => rsString += s, finished => end = finished);
-
+        try
+                {ResponseToString(conversation.StreamResponseEnumerableFromChatbotAsync(), (s) => rsString += s, finished => end = finished);
+        
+            
+        }
+        catch (HttpRequestException e)
+        {
+            if (e.ToString().Contains("please check your plan and billing details"))
+            {
+                await message.Channel.SendMessageAsync("Лимит сообщений исчерпан. Ищу рабочий токен. К сожалению история запросов будет очищена.");
+               
+                if(!await _chatService.FindWorkingToken())
+                    await message.Channel.SendMessageAsync("Рабочих токенов не нашлось... Скоро починим..");
+                else
+                {
+                    await message.Channel.SendMessageAsync("Токен найден. Повторите запрос!");
+                    
+                }
+            }
+            Console.WriteLine(e);
+            return;
+        }
         var msg = await message.Channel.SendMessageAsync("Думаю...",
             messageReference: new MessageReference(message.Id));
         while (!end && !sendDone)

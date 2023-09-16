@@ -12,7 +12,7 @@ public class VkChatBotService
     private readonly OpenAIChatService _service;
     private readonly ILogger<VKChatBot> _logger;
     private readonly VkApi _vkApi;
-
+    private static DateTime lastUsage;
     private ConcurrentDictionary<string, Conversation> conversations = new();
     public VkChatBotService(OpenAIChatService service, ILogger<VKChatBot> logger, VkApi vkApi)
     {
@@ -27,6 +27,14 @@ public class VkChatBotService
             return;
         if (!msgObject.Text.StartsWith("/gpt"))
             return;
+        if (DateTime.UtcNow - lastUsage >=
+            TimeSpan.FromSeconds(60 / int.Parse(Environment.GetEnvironmentVariable("RPM_MAX") ?? "3")))
+            lastUsage = DateTime.UtcNow;
+        else
+        {
+            await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = "Слишком много запросов. Пододждите " + (TimeSpan.FromSeconds(60 / int.Parse(Environment.GetEnvironmentVariable("RPM_MAX") ?? "3")) - (DateTime.UtcNow - lastUsage)).Seconds + "с.", RandomId = new Random().Next(100,100000000), ForwardMessages = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), DontParseLinks = true, PeerId = msgObject.PeerId});
+            return;
+        }
         Conversation conversation;
         switch (msgObject.Text.Substring(0, 5).ToLower())
         {
@@ -55,9 +63,28 @@ public class VkChatBotService
         conversation.AppendUserInput(content);
         var rsString = string.Empty;
         var end = false;
-        await ResponseToString(conversation.StreamResponseEnumerableFromChatbotAsync(), (s) => rsString += s, finished => end = finished);
-        await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = rsString, RandomId = new Random().Next(100,100000000), Forward = new MessageForward(){IsReply = true, 
-            MessageIds = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), PeerId = msgObject.PeerId}, DontParseLinks = true, PeerId = msgObject.PeerId});
+        try
+        {
+            await ResponseToString(conversation.StreamResponseEnumerableFromChatbotAsync(), (s) => rsString += s, finished => end = finished);
+        }
+        catch (HttpRequestException e)
+        {
+            if (e.ToString().Contains("please check your plan and billing details"))
+            {
+                await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = "Лимит сообщений исчерпан. Ищу рабочий токен. К сожалению история запросов будет очищена.", RandomId = new Random().Next(100,100000000), ForwardMessages = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), DontParseLinks = true, PeerId = msgObject.PeerId});
+
+                if(!await _service.FindWorkingToken())
+                    await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = "Рабочих токенов не нашлось... Скоро починим..", RandomId = new Random().Next(100,100000000), ForwardMessages = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), DontParseLinks = true, PeerId = msgObject.PeerId});
+                else
+                {
+                    await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = "Токен найден, повторите запрос!", RandomId = new Random().Next(100,100000000), ForwardMessages = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), DontParseLinks = true, PeerId = msgObject.PeerId});
+                    
+                };
+            }
+            Console.WriteLine(e);
+            return;
+        }
+        await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = rsString, RandomId = new Random().Next(100,100000000), ForwardMessages = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), DontParseLinks = true, PeerId = msgObject.PeerId});
         
         //while (true)
         //{
