@@ -40,21 +40,21 @@ public class DiscordChatBotService : IHostedService
         Conversation conversation;
         switch (message.Content.Substring(0, 5).ToLower())
         {
-            case "/gpt4":
-            {
-                if (!conversations.TryGetValue(message.Author.Id + Model.GPT4, out conversation))
-                {
-                    conversation = _chatService.CreateConversation(Model.GPT4);
-                    conversations.TryAdd(message.Author.Id + Model.GPT4, conversation);
-                }
-
-                break;
-            }
+            //case "/gpt4":
+            //{
+            //    if (!conversations.TryGetValue(message.Author.Id + Model.GPT4, out conversation))
+            //    {
+            //        conversation = _chatService.CreateConversation(Model.GPT4);
+            //        conversations.TryAdd(message.Author.Id + Model.GPT4, conversation);
+            //    }
+//
+            //    break;
+            //}
             default:
             {
                 if (!conversations.TryGetValue(message.Author.Id.ToString(), out conversation))
                 {
-                    conversation = _chatService.CreateConversation(Model.ChatGPTTurbo);
+                    conversation = _chatService.CreateConversation(OpenAI_API.Models.Model.ChatGPTTurbo);
                     conversations.TryAdd(message.Author.Id.ToString(), conversation);
                 }
 

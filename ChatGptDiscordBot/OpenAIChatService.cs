@@ -7,15 +7,19 @@ namespace ChatGptDiscordBot;
 public class OpenAIChatService
 {
     private OpenAIAPI? _api;
+    private  static OpenAIAPI? _apiGpt4;
     private static Queue<string> ApiTokens = new ();
+    
     static OpenAIChatService()
     {
-        var tokens = Environment.GetEnvironmentVariable("OPENAI_TOKENS");
+        var tokens = Environment.GetEnvironmentVariable("OPENAI_TOKENS") ?? "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";
         foreach (var token in tokens.Split(";"))
         {
             if (!string.IsNullOrWhiteSpace(token))
                 ApiTokens.Enqueue(token);
         }
+
+        _apiGpt4 = new OpenAIAPI(new APIAuthentication(Environment.GetEnvironmentVariable("OPENAI_PAYED_TOKEN")??""));
     }
     public OpenAIChatService()
     {
@@ -33,7 +37,25 @@ public class OpenAIChatService
     
     public Conversation CreateConversation(string model)
     {
-        return _api.Chat.CreateConversation(new ChatRequest(){Model = model});
+        if (model == OpenAI_API.Models.Model.GPT4)
+            return _apiGpt4.Chat.CreateConversation(new ChatRequest() { Model = model });
+        
+        if (Environment.GetEnvironmentVariable("TOKEN_PER_USER")?.ToLower() == "true")
+        {
+            if (ApiTokens.TryDequeue(out var token))
+            {
+                var api = new OpenAIAPI(new APIAuthentication(token));
+                return api.Chat.CreateConversation(new ChatRequest() { Model = model });
+            }
+        }
+
+        return _api.Chat.CreateConversation(new ChatRequest() { Model = model });
+    }
+    
+    public Conversation CreatePremiumConversation(string model)
+    {
+        Console.WriteLine("Premium chatgpt requested");
+            return _apiGpt4.Chat.CreateConversation(new ChatRequest() { Model = model });
     }
 
     public async Task<bool> FindWorkingToken()
@@ -55,7 +77,7 @@ public class OpenAIChatService
     {
         try
         {
-            var conversation = CreateConversation(Model.ChatGPTTurbo);
+            var conversation = CreateConversation(OpenAI_API.Models.Model.ChatGPTTurbo);
             conversation.AppendUserInput("Напиши одно слово");
             var response = await conversation.GetResponseFromChatbotAsync();
             return true;
