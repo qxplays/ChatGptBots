@@ -6,21 +6,30 @@ namespace ChatGptDiscordBot;
 
 public class OpenAIChatService
 {
-    private static OpenAIAPI _api;
-
+    private OpenAIAPI? _api;
+    private static Queue<string> ApiTokens = new ();
     static OpenAIChatService()
     {
-        _api = new OpenAIAPI(new APIAuthentication(Environment.GetEnvironmentVariable("OPENAI_TOKEN")));
+        var tokens = Environment.GetEnvironmentVariable("OPENAI_TOKENS");
+        foreach (var token in tokens.Split(";"))
+        {
+            if (!string.IsNullOrWhiteSpace(token))
+                ApiTokens.Enqueue(token);
+        }
     }
-
-    static public IAsyncEnumerable<ChatResult> GetGPT35Response(string request)
+    public OpenAIChatService()
     {
-        return _api.Chat.StreamChatEnumerableAsync(new List<ChatMessage>(new ChatMessage[]
-            { new ChatMessage(ChatMessageRole.User, request) }));
-
+        Console.WriteLine("getting brand new chat service instance");
+        if (ApiTokens.TryDequeue(out var token))
+        {
+            _api = new OpenAIAPI(new APIAuthentication(token));
+            return;
+        }
+        Console.WriteLine("no free tokens left");
+        
     }
 
-    public static Conversation CreateConversation(string model)
+    public Conversation CreateConversation(string model)
     {
         return _api.Chat.CreateConversation(new ChatRequest(){Model = model});
     }
