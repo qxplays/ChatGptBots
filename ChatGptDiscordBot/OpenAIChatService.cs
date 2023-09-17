@@ -12,7 +12,7 @@ public class OpenAIChatService
     
     static OpenAIChatService()
     {
-        var tokens = Environment.GetEnvironmentVariable("OPENAI_TOKENS") ?? "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";
+        var tokens = Environment.GetEnvironmentVariable("OPENAI_TOKENS") ?? "";
         foreach (var token in tokens.Split(";"))
         {
             if (!string.IsNullOrWhiteSpace(token))
@@ -37,9 +37,7 @@ public class OpenAIChatService
     
     public Conversation CreateConversation(string model)
     {
-        if (model == OpenAI_API.Models.Model.GPT4)
-            return _apiGpt4.Chat.CreateConversation(new ChatRequest() { Model = model });
-        
+
         if (Environment.GetEnvironmentVariable("TOKEN_PER_USER")?.ToLower() == "true")
         {
             if (ApiTokens.TryDequeue(out var token))

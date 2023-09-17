@@ -8,5 +8,8 @@ public class ChatbotDbContext : DbContext
     public ChatbotDbContext(DbContextOptions options) : base(options)
     {
         Database.EnsureCreated();
+        Database.Migrate();
     }
+    
+    
 }
