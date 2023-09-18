@@ -8,5 +8,18 @@ public static class Extensions
     {
         return (Convert.ToInt32(enumeration) & Convert.ToInt32(flag)) == 1;
     }
-    
+
+    public static bool CanUsePremiumModel(this ChatGptDiscordBot.Model.User user, OpenAI_API.Models.Model model)
+    {
+        if (model.ModelID == OpenAI_API.Models.Model.GPT4.ModelID)
+        {
+            return user.GPT4_TOKENS > 0;
+        }
+        if (model.ModelID == OpenAI_API.Models.Model.ChatGPTTurbo.ModelID)
+        {
+            return user.GPT35_TOKENS > 0;
+        }
+
+        return false;
+    }
 }

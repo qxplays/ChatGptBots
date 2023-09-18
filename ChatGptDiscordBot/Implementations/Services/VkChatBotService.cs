@@ -115,7 +115,7 @@ public class VkChatBotService
                         await _vkApi.Messages.SendAsync(new MessagesSendParams()
                         {
                             Message =
-                                "Доступне запросы к GPT4 закончились.",
+                                "Доступные запросы к GPT4 закончились.",
                             RandomId = new Random().Next(100, 100000000),
                             ForwardMessages = msgObject.Id == null
                                 ? null

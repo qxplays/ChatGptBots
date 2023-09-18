@@ -43,11 +43,11 @@ public class OpenAIChatService
             if (ApiTokens.TryDequeue(out var token))
             {
                 var api = new OpenAIAPI(new APIAuthentication(token));
-                return api.Chat.CreateConversation(new ChatRequest() { Model = model });
+                return api.Chat.CreateConversation(new ChatRequest() { Model = model,  });
             }
         }
 
-        return _api.Chat.CreateConversation(new ChatRequest() { Model = model });
+        return _api.Chat.CreateConversation(new ChatRequest() { Model = model, MaxTokens =  int.TryParse(Environment.GetEnvironmentVariable("MAX_TOKENS"), out var i)?i:2000});
     }
     
     public Conversation CreatePremiumConversation(string model)
