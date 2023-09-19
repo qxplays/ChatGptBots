@@ -29,4 +29,10 @@
       <PackageReference Include="VkNet" Version="1.77.0-alpha-91" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="cert.pfx">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

@@ -36,12 +36,12 @@ builder.Services.AddSingleton<VkApi>((provider) =>
 });
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
-    options.ConfigureHttpsDefaults(adapterOptions =>
-        adapterOptions.UseLettuceEncrypt(options.ApplicationServices));
-    options.ListenAnyIP(443, listenOptions => listenOptions.UseHttps());
+    //options.ConfigureHttpsDefaults(adapterOptions =>
+    //    adapterOptions.UseLettuceEncrypt(options.ApplicationServices));
+    //options.ListenAnyIP(443, listenOptions => listenOptions.UseHttps());
     options.ListenAnyIP(80);
 });
-builder.Services.AddLettuceEncrypt();
+//builder.Services.AddLettuceEncrypt();
 builder.Services.AddTransient<ITelegramBotClient>((ctx) => new TelegramBotClient(Environment.GetEnvironmentVariable("TELEGRAM_TOKEN") ??
     "6119724546:AAGWe7H8Z_Lx7VBX_y7z0vdq4tpymhxYDwA")
 );
