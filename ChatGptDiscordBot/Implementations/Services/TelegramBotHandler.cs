@@ -45,14 +45,12 @@ public class TelegramBotHandler
             if(message.From.IsBot)
                 return;
         
-
-            if(!message.EntityValues?.Any()??false)
-                return;
-        
             OpenAI_API.Models.Model model;
         
             var command = message.EntityValues?.First();
-            message.Text = message.Text?.Replace(command!, String.Empty);
+            if(string.IsNullOrWhiteSpace(command))
+                return;
+            message.Text = message.Text?.Replace(command, String.Empty);
         
 
             if (command!.StartsWith("/gpt4"))
@@ -151,9 +149,17 @@ public class TelegramBotHandler
                     }));
             }
         }
+        catch (NotImplementedException e)
+        {
+            Console.WriteLine(e);
+            await _client.SendTextMessageAsync(message.Chat.Id, "Эта команда еще не реализована",
+                replyToMessageId: message.MessageId);
+        }
         catch (Exception e)
         {
             Console.WriteLine(e);
+            await _client.SendTextMessageAsync(message.Chat.Id, e.Message,
+                replyToMessageId: message.MessageId);
         }
     }
 }
