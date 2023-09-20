@@ -6,6 +6,7 @@ namespace ChatGptDiscordBot.Implementations.Services;
 public interface IUserService
 {
     User GetUser(string? userIdentifier, string? name);
+    UserToken GetUserTokens(Guid userId);
     Task SaveUser(User user);
 }
 
@@ -40,6 +41,11 @@ public class UserService : IUserService
         _dbContext.Add(user);
         _dbContext.SaveChanges();
         return user;
+    }
+
+    public UserToken GetUserTokens(Guid userId)
+    {
+        return _dbContext.UserTokens.SingleOrDefault(x => x.UserId == userId);
     }
 
     public async Task SaveUser(User user)

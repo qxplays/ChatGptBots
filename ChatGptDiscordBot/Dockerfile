@@ -3,11 +3,11 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
-COPY ["ChatGptDiscordBot.csproj", ""]
+COPY ["ChatGptDiscordBot.csproj", ""]   
 RUN dotnet restore "ChatGptDiscordBot.csproj"
 COPY . .
 WORKDIR "/src"
-RUN dotnet build "ChatGptDiscordBot.csproj" -c Release -o /app/build
+RUN dotnet build "ChatGptDiscordBot.csproj" -c Release -o /app/build  
 
 FROM build AS publish
 RUN dotnet publish "ChatGptDiscordBot.csproj" -c Release -o /app/publish

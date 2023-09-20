@@ -1,5 +1,6 @@
 ﻿
 
+using System.Net.Http.Headers;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using ChatGptDiscordBot;
@@ -11,6 +12,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using OpenAI_API.Images;
+using OpenQA.Selenium;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using VkNet;
@@ -90,10 +93,21 @@ app.MapPost("/tghook/", async (TelegramBotHandler handler, HttpContext context) 
     return "OK";
 });
 
-app.MapGet("/", (ChatbotDbContext ctx) =>
+app.MapGet("/", async (OpenAIChatService ctx, ITelegramBotClient client, VkApi _vkApi, IOpenAIChatService _service) =>
 {
-    Console.WriteLine(ctx.Users.Any());
-    return "OK";
+    //var sentMessage = await client.SendPhotoAsync(752244589, InputFile.FromUri("https://cs6.pikabu.ru/avatars/1884/x1884116-138679135.png"), caption: "Генерирую...");
+    //var data = await OpenAIChatService._apiGpt4.ImageGenerations.CreateImageAsync(
+    //    new ImageGenerationRequest(
+    //        "кошка спит на подоконнике. реалистичною. фотографически",
+    //        1, ImageSize._1024){ResponseFormat = ImageResponseFormat.B64_json});
+    //using var stream = new MemoryStream(Convert.FromBase64String(data?.Data.First().Base64Data));
+    //var file = InputFile.FromStream(stream, "image.png");
+    //await client.EditMessageMediaAsync(752244589, sentMessage.MessageId,
+    //    new InputMediaPhoto(file));
+    ////conversation.Data.First().Url;
+    //return data.Model + "\r\n" + data.Data.First().Url;
+
+    return "Ok";
 });
 
 app.Run();
@@ -115,4 +129,11 @@ public class Message
     
     [JsonProperty("message")]
     public VkNet.Model.Message? Object { get; set; }
+}
+class RS
+
+{
+    public string Response { get; set; }
+    public string Server { get; set; }
+    public string Photo { get; set; }
 }

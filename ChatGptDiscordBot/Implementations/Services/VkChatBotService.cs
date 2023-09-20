@@ -1,8 +1,10 @@
 ﻿using System.Collections.Concurrent;
+using System.Net.Http.Headers;
 using ChatGptDiscordBot.Model;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using OpenAI_API;
+using OpenAI_API.Images;
 using OpenAI_API.Models;
 using VkNet;
 using VkNet.Enums.StringEnums;
@@ -65,12 +67,17 @@ public class VkChatBotService
                 HandleMeCommand(msgObject, dbContext);
                 return;
             }
+            if (msgObject.Text.StartsWith("/imagine"))
+            {
+                HandleImagineCommand(msgObject, dbContext);
+                return;
+            }
             if (msgObject.Text.StartsWith("/help") || msgObject.Text.StartsWith("/?"))
             {
                 HandleHelpCommand(msgObject);
                 return;
             }
-            if (!msgObject.Text.StartsWith("/gpt"))
+            if (!msgObject.Text.StartsWith("/gpt") && msgObject.FromId != msgObject.PeerId)
                 return;
             string key;
             var vkUser = _vkApi.Users.Get(new[] { (long)msgObject.FromId })?.FirstOrDefault();
@@ -279,4 +286,75 @@ public class VkChatBotService
         var replyMsg = await _vkApi.Messages.SendAsync(new MessagesSendParams() { Message = $"Осталось запросов к ChatGPT в рамках оплаченного пакета для {currentUser.Name}\r\n GPT3.5: {currentUser.GPT35_TOKENS}\r\n GPT4: {currentUser.GPT4_TOKENS}", RandomId = new Random().Next(100,100000000), ForwardMessages = msgObject.Id==null?null:new List<long>(new []{(long)msgObject.Id}.AsEnumerable()), DontParseLinks = true, PeerId = msgObject.PeerId});
 
     }
+
+    private async void HandleImagineCommand(VkNet.Model.Message msgObject, ChatbotDbContext dbcontext)
+    {
+        try
+        {
+            var vkUser = _vkApi.Users.Get(new[] { (long)msgObject.FromId })?.FirstOrDefault();
+            var replyMsg = await _vkApi.Messages.SendAsync(new MessagesSendParams()
+            {
+                Message = $"Генерирую ответ для {vkUser?.FirstName} {vkUser?.LastName}...",
+                RandomId = new Random().Next(100, 100000000),
+                ForwardMessages = msgObject.Id == null
+                    ? null
+                    : new List<long>(new[] { (long)msgObject.Id }.AsEnumerable()),
+                DontParseLinks = true, PeerId = msgObject.PeerId
+            });
+            using var multipartFormContent = new MultipartFormDataContent();
+            var uploadServer = _vkApi.Photo.GetMessagesUploadServer(222570306);
+            var image = await _service.GenerateImage(new ImageGenerationRequest(msgObject.Text, 1, ImageSize._1024)
+                { ResponseFormat = ImageResponseFormat.B64_json });
+
+            using var stream = new MemoryStream(Convert.FromBase64String(image?.Data.First().Base64Data));
+            var content = new StreamContent(stream);
+            content.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+            multipartFormContent.Add(content, name: "file", fileName: image.CreatedUnixTime + ".png");
+
+
+            var rs = await new HttpClient().PostAsync(uploadServer.UploadUrl, multipartFormContent);
+            var rsData = await rs.Content.ReadAsStringAsync();
+            var rsObj = JsonConvert.DeserializeObject<RS>(rsData);
+            var potoSaveRs = _vkApi.Photo.SaveMessagesPhoto(rsData);
+            await _vkApi.Messages.SendAsync(new MessagesSendParams()
+            {
+                Attachments = potoSaveRs, RandomId = new Random().Next(100, 100000000),
+                ForwardMessages = msgObject.Id == null
+                    ? null
+                    : new List<long>(new[] { (long)msgObject.Id }.AsEnumerable()),
+                PeerId = msgObject.PeerId
+            });
+        }
+        catch (HttpRequestException e)
+        {
+            Console.WriteLine(e);
+            var jsonRs = JsonConvert.DeserializeObject<RequestError>(e.Message);
+            await _vkApi.Messages.SendAsync(new MessagesSendParams()
+            {
+                Message = jsonRs?.Error?.Message,
+                RandomId = new Random().Next(100, 100000000),
+                ForwardMessages = msgObject.Id == null
+                    ? null
+                    : new List<long>(new[] { (long)msgObject.Id }.AsEnumerable()),
+                PeerId = msgObject.PeerId
+            });
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
+    }
+}
+
+public class RequestError
+{
+    public InnerError Error { get; set; }
+}
+
+public class InnerError
+{
+    public string Code { get; set; }
+    public string Message { get; set; }
+    public string Param { get; set; }
+    public string Type { get; set; }
 }

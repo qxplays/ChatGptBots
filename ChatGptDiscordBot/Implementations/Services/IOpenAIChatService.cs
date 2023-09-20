@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.Win32;
 using OpenAI_API.Chat;
+using OpenAI_API.Images;
+using OpenQA.Selenium.DevTools.V116.DeviceAccess;
 using OpenQA.Selenium.DevTools.V85.CSS;
 using VkNet.Model;
 using Conversation = OpenAI_API.Chat.Conversation;
@@ -14,6 +16,7 @@ public interface IOpenAIChatService
     void Reset(string fromId);
     void SetCreativity(string fromId);
     (int gpt4, int gpt35) HandleMeCommand(string s, string toString);
+    Task<ImageResult?> GenerateImage(string toString, string? fromUsername, ImageGenerationRequest imageGenerationRequest);
 }
 
 public class OpenAIChatServiceImpl : IOpenAIChatService
@@ -57,7 +60,6 @@ public class OpenAIChatServiceImpl : IOpenAIChatService
                 user.GPT35_TOKENS -= 1;
             await _userService.SaveUser(user);
 
-
         }
         
         catch (Exception e)
@@ -86,6 +88,11 @@ public class OpenAIChatServiceImpl : IOpenAIChatService
     {
         var user = _userService.GetUser(id, nick);
         return (user.GPT4_TOKENS, user.GPT35_TOKENS);
+    }
+
+    public async Task<ImageResult?> GenerateImage(string toString, string? fromUsername, ImageGenerationRequest imageGenerationRequest)
+    {
+        return await _service.GenerateImage(imageGenerationRequest);
     }
 
     private static TimeSpan RPM_DELAY =

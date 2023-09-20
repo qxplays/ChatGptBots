@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
 using ChatGptDiscordBot.Model;
 using Newtonsoft.Json;
+using OpenAI_API.Images;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Message = Telegram.Bot.Types.Message;
 
 namespace ChatGptDiscordBot.Implementations.Services;
@@ -48,9 +50,9 @@ public class TelegramBotHandler
             OpenAI_API.Models.Model model;
         
             var command = message.EntityValues?.First();
-            if(string.IsNullOrWhiteSpace(command))
+            if(string.IsNullOrWhiteSpace(command) && message.Chat.Type != ChatType.Private)
                 return;
-            message.Text = message.Text?.Replace(command, String.Empty);
+            message.Text = message.Text?.Replace(command??"/gpt", String.Empty);
         
 
             if (command!.StartsWith("/gpt4"))
@@ -64,7 +66,7 @@ public class TelegramBotHandler
             else if (command.StartsWith("/reset"))
             {
                 _service.Reset(message.From.Id.ToString());
-                return;
+                return; 
             }
             else if (command.StartsWith("/creativity"))
             {
@@ -78,16 +80,42 @@ public class TelegramBotHandler
                     $"Осталось запросов:\r\n GPT4: {data.gpt4} \r\nGPT3.5: {data.gpt35}", replyToMessageId: message.MessageId);
                 return;
             }
+            else if (command.StartsWith("/imagine"))
+            {
+                try
+                {
+                    var sentMessage = await _client.SendPhotoAsync(message.Chat.Id, InputFile.FromUri("https://cs6.pikabu.ru/avatars/1884/x1884116-138679135.png"),  caption: "Генерирую ответ...",
+                        replyToMessageId: message.MessageId);
+                    var data = await _service.GenerateImage(message.From.Id.ToString(), message.From.Username, new ImageGenerationRequest(message.Text, 1, ImageSize._1024){ResponseFormat = ImageResponseFormat.B64_json});
+                    using var stream = new MemoryStream(Convert.FromBase64String(data?.Data.First().Base64Data));
+                    await _client.EditMessageMediaAsync(message.Chat.Id, sentMessage.MessageId,
+                        new InputMediaPhoto(InputFile.FromStream(stream, data.CreatedUnixTime.ToString()+".png")));
+                    //await _client.SendPhotoAsync(message.Chat.Id, , replyToMessageId: message.MessageId);
+                    return;
+                }
+                catch (HttpRequestException e)
+                {
+                    Console.WriteLine(e);
+                    var jsonRs = JsonConvert.DeserializeObject<RequestError>(e.Message);
+                    var sentMessage = await _client.SendTextMessageAsync(message.Chat.Id, "Ошибка при генерации ответа: "+jsonRs?.Error?.Message,
+                        replyToMessageId: message.MessageId);
+                    return;
+                }
+            }
+            else if (message.Chat.Type == ChatType.Private)
+            {
+                model = OpenAI_API.Models.Model.ChatGPTTurbo;
+            }
             else
             {
                 return;
             }
 
-            if (command.Contains("/gpt"))
+            if (command.Contains("/gpt") || message.Chat.Type == ChatType.Private)
             {
                 if (message.Text.Length < 2)
                 {
-                    await _client.SendTextMessageAsync(message.Chat.Id, "Нужно больше золота (текста)",
+                    await _client.SendTextMessageAsync(message.Chat.Id, "Использование команды - /gpt текст_запроса. Без текста не рокатит. Извините",
                         replyToMessageId: message.MessageId);
                     return;
                 }

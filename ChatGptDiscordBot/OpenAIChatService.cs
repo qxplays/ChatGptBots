@@ -1,5 +1,8 @@
-﻿using OpenAI_API;
+﻿using System.Collections.Concurrent;
+using Newtonsoft.Json;
+using OpenAI_API;
 using OpenAI_API.Chat;
+using OpenAI_API.Images;
 using OpenAI_API.Models;
 
 namespace ChatGptDiscordBot;
@@ -7,8 +10,9 @@ namespace ChatGptDiscordBot;
 public class OpenAIChatService
 {
     private OpenAIAPI? _api;
-    private  static OpenAIAPI? _apiGpt4;
+    public  static OpenAIAPI? _apiGpt4;
     private static Queue<string> ApiTokens = new ();
+    private static Queue<OpenAIAPI> ApiForImages = new ();
     
     static OpenAIChatService()
     {
@@ -18,8 +22,14 @@ public class OpenAIChatService
             if (!string.IsNullOrWhiteSpace(token))
                 ApiTokens.Enqueue(token);
         }
+        var tokens_image = Environment.GetEnvironmentVariable("OPENAI_TOKENS_IMAGE") ?? "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";
+        foreach (var token in tokens_image.Split(";"))
+        {
+            if (!string.IsNullOrWhiteSpace(token))
+                ApiForImages.Enqueue(new OpenAIAPI(new APIAuthentication(token)));
+        }
 
-        _apiGpt4 = new OpenAIAPI(new APIAuthentication(Environment.GetEnvironmentVariable("OPENAI_PAYED_TOKEN")??""));
+        _apiGpt4 = new OpenAIAPI(new APIAuthentication(Environment.GetEnvironmentVariable("OPENAI_PAYED_TOKEN")??"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"));
     }
     public OpenAIChatService()
     {
@@ -34,7 +44,14 @@ public class OpenAIChatService
             _api = new OpenAIAPI(new APIAuthentication(token));
         }
     }
-    
+
+    public async Task<ImageResult?> GenerateImage(ImageGenerationRequest request)
+    {
+        ApiForImages.TryDequeue(out var api);
+        ApiForImages.Enqueue(api);
+        return await api.ImageGenerations.CreateImageAsync(request);
+    }
+
     public Conversation CreateConversation(string model)
     {
 
@@ -86,4 +103,10 @@ public class OpenAIChatService
             return false;
         }
     }
+}
+
+public class OpenAIBase64Json
+{
+    [JsonProperty("b64_json")]
+    public string Json { get; set; }
 }
